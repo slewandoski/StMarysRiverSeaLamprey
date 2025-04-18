@@ -187,6 +187,17 @@ f <- function(par) {
   # compute avg overdispersion across observations:
   # Overdispersion = 1 + mu / theta, where mu = exp(ln_pred_i)
   od <- mean(1 + exp(ln_pred_i - ln_theta))
+  # Predicted mean and variance for each observation
+  mu_i <- exp(ln_pred_i)
+  theta <- exp(ln_theta)
+  var_i <- mu_i + mu_i^2 / theta
+  
+  # Compute Pearson residuals
+  resid_pearson <- (c_i - mu_i) / sqrt(var_i)
+  
+  # Report individual residuals (e.g., for spatial plotting)
+  REPORT(mu_i)
+  REPORT(resid_pearson)
   ADREPORT(od)
   ADREPORT(range)
   jnll
@@ -204,3 +215,8 @@ sdr
 
 sdr$value
 sdr$sd
+
+plot(obj$report()$'mu_i', obj$report()$'resid_pearson',
+     pch = 20, main = "Pearson residuals vs Fitted", 
+     xlab = "Fitted values (mu_i)", ylab = "Pearson residuals")
+abline(h = 0, col = "gray")

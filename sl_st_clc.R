@@ -49,7 +49,7 @@ m <- glm(data$n ~ 1, family = poisson)
 #-------------------------------------------------------------------------------
 # set up spde approximation
 #-------------------------------------------------------------------------------
-mesh <- fm_mesh_2d(coords, refine = TRUE, cutoff = 0.4)
+mesh <- fm_mesh_2d(coords, refine = TRUE, cutoff = 0.1)
 mesh$n # mesh nodes --> random effects we must estimate, so coarse to start
 plot(mesh,
   main = "study area with mesh",

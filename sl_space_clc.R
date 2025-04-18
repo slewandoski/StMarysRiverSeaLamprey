@@ -3,9 +3,7 @@
 # Cahill 16 April 2025
 #
 # TODO:
-# figure out a way to get rid of that overdispersion,
-# turn this into a space-time model, at least for the years where the data
-# look more or less reasonable -- early years looked a bit wonky to me
+# figure out a way to get rid of that overdispersion...
 #
 #-------------------------------------------------------------------------------
 library(fmesher)
@@ -20,7 +18,7 @@ data <- st_as_sf(data, coords = c("longitude", "latitude"), crs = 4326) # WGS84
 data <- st_transform(data, crs = 26916) # EPSG:26916
 
 # start with 2024 data
-data <- subset(data, year == 2024)
+data <- subset(data, year >= 2000)
 
 # extract UTM coordinates in km
 coords <- st_coordinates(data) / 1000
@@ -49,7 +47,7 @@ m <- glm(data$n ~ 1, family = poisson)
 #-------------------------------------------------------------------------------
 # set up spde approximation
 #-------------------------------------------------------------------------------
-mesh <- fm_mesh_2d(coords, refine = TRUE, cutoff = 0.1)
+mesh <- fm_mesh_2d(coords, refine = TRUE, cutoff = 0.9)
 mesh$n # mesh nodes --> random effects we must estimate, so coarse to start
 plot(mesh,
   main = "study area with mesh",

@@ -1,13 +1,13 @@
-#--------------------------------------------------------------------------------
-# St. Mary's larval lamprey in space 
+#-------------------------------------------------------------------------------
+# St. Mary's larval lamprey in space
 # Cahill 16 April 2025
-# 
+#
 # TODO:
-# figure out a way to get rid of that overdispersion, 
+# figure out a way to get rid of that overdispersion,
 # turn this into a space-time model, at least for the years where the data
 # look more or less reasonable -- early years looked a bit wonky to me
 #
-#--------------------------------------------------------------------------------
+#-------------------------------------------------------------------------------
 library(fmesher)
 library(sf)
 library(RTMB)
@@ -24,8 +24,8 @@ data <- subset(data, year == 2024)
 
 # extract UTM coordinates in km
 coords <- st_coordinates(data) / 1000
-data$easting_km <- coords[, 1] 
-data$northing_km <- coords[, 2] 
+data$easting_km <- coords[, 1]
+data$northing_km <- coords[, 2]
 
 # rename n for simplicity
 data$n <- data$sl.larv.n
@@ -46,13 +46,15 @@ sum(data$n == 0) / nrow(data)
 m <- glm(data$n ~ 1, family = poisson)
 -logLik(m)
 
-#--------------------------------------------------------------------------------
+#-------------------------------------------------------------------------------
 # set up spde approximation
-#--------------------------------------------------------------------------------
+#-------------------------------------------------------------------------------
 mesh <- fm_mesh_2d(coords, refine = TRUE, cutoff = 0.4)
 mesh$n # mesh nodes --> random effects we must estimate, so coarse to start
-plot(mesh, main = "study area with mesh", 
-     xlab = "Easting", ylab = "Northing")
+plot(mesh,
+  main = "study area with mesh",
+  xlab = "Easting", ylab = "Northing"
+)
 points(coords, cex = 0.1, pch = 1, col = "steelblue4")
 
 # create matrices in fmesher / INLA
@@ -61,12 +63,12 @@ spde <- fm_fem(mesh, order = 2)
 # create projection matrix from vertices to sample locations
 A_is <- fm_evaluator(mesh, loc = coords)$proj$A
 
-#--------------------------------------------------------------------------------
-# fit spatial GLMM using SPDE approximation via RTMB
-#--------------------------------------------------------------------------------
+#-------------------------------------------------------------------------------
+# fit spatial Poisson GLMM using SPDE approximation via RTMB
+#-------------------------------------------------------------------------------
 
 data <- list(
-  "c_i" = data$n, "A_is" = A_is, 
+  "c_i" = data$n, "A_is" = A_is,
   "M0" = spde$c0, "M1" = spde$g1, "M2" = spde$g2
 )
 par <- list(
@@ -94,7 +96,7 @@ obj$fn()
 obj$gr()
 
 opt <- nlminb(obj$par, obj$fn, obj$gr)
-opt 
+opt
 sdr <- sdreport(obj, bias.correct = TRUE)
 sdr
 
@@ -105,9 +107,9 @@ sdr$sd
 # simulate data from fitted model
 obj$simulate()
 sim <- obj$simulate()$c_i
-sum(sim == 0)/length(sim)
+sum(sim == 0) / length(sim)
 
-#--------------------------------------------------------------------------------
+#-------------------------------------------------------------------------------
 # approximate overdispersion
 # phi = sum( (y_i - mu_i)^2 / mu_i ) / (n - p)
 # where:
@@ -116,7 +118,7 @@ sum(sim == 0)/length(sim)
 #   n      = number of observations
 #   p      = total number of estimated parameters (fixed + random effects)
 # note we could ADREPORT this but I am being lazy tonight
-#--------------------------------------------------------------------------------
+#-------------------------------------------------------------------------------
 
 # reconstruct fitted mu_i
 omega_i_hat <- data$A_is %*% sdr$par.random[names(sdr$par.random) == "omega_s"]
@@ -129,4 +131,45 @@ resid_pearson <- (data$c_i - lambda_hat) / sqrt(lambda_hat)
 phi <- sum(resid_pearson^2) / (length(data$c_i) - mesh$n - 1)
 print(phi) # values >> 1 are bad
 
+#-------------------------------------------------------------------------------
+# fit spatial Negative Binomial GLMM using SPDE approximation via RTMB
+#-------------------------------------------------------------------------------
+
+par <- list(
+  "beta0" = 0, 
+  "ln_tau" = 0, 
+  "ln_kappa" = 0,
+  "ln_theta" = 0,
+  "omega_s" = numeric(nrow(spde$c0))
+)
+
+f <- function(par) {
+  getAll(data, par, warn = FALSE)
+  c_i <- OBS(c_i)
+  sigE <- 1 / sqrt(4 * pi * exp(2 * ln_tau) * exp(2 * ln_kappa))
+  Q <- exp(4 * ln_kappa) * M0 + 2 * exp(2 * ln_kappa) * M1 + M2
+  jnll <- 0
+  jnll <- jnll - dgmrf(omega_s, 0.0, Q, TRUE, scale = 1 / exp(ln_tau))
+  omega_i <- A_is %*% omega_s
+  ln_pred_i <- beta0 + omega_i
+  ln_var_minus_mu_c <- 2 * ln_pred_i - ln_theta
+  jnll <- jnll - sum(dnbinom_robust(c_i, exp(ln_pred_i),
+    log_var_minus_mu = ln_var_minus_mu_c,
+    TRUE
+  ))
+  range <- sqrt(8) / exp(ln_kappa)
+  ADREPORT(range)
+  REPORT(sigE)
+  jnll
+}
+
+obj <- MakeADFun(f, par, random = "omega_s")
+obj$fn()
+obj$gr()
+
+opt <- nlminb(obj$par, obj$fn, obj$gr)
+opt
+
+sdr <- sdreport(obj, bias.correct = TRUE)
+sdr
 

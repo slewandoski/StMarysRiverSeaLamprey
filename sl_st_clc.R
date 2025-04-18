@@ -153,13 +153,17 @@ f <- function(par) {
   omega_i <- A_is %*% omega_s
   ln_pred_i <- beta0 + omega_i
   ln_var_minus_mu_c <- 2 * ln_pred_i - ln_theta
-  jnll <- jnll - sum(dnbinom_robust(c_i, exp(ln_pred_i),
+  jnll <- jnll - sum(dnbinom_robust(c_i, ln_pred_i,
     log_var_minus_mu = ln_var_minus_mu_c,
     TRUE
   ))
   range <- sqrt(8) / exp(ln_kappa)
+  # compute avg overdispersion across observations: 
+  # Overdispersion = 1 + mu / theta, where mu = exp(ln_pred_i)
+  od <- mean(1 + exp(ln_pred_i - ln_theta))
+  ADREPORT(od)
   ADREPORT(range)
-  REPORT(sigE)
+  ADREPORT(sigE)
   jnll
 }
 
@@ -173,3 +177,5 @@ opt
 sdr <- sdreport(obj, bias.correct = TRUE)
 sdr
 
+sdr$value
+sdr$sd

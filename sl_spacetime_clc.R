@@ -178,24 +178,21 @@ f <- function(par) {
   for (i in 1:length(c_i)) {
     ln_pred_i[i] <- beta0 + omega_i[i] + epsilon_it[i, t_i[i]]
   }
-  ln_var_minus_mu_c <- 2 * ln_pred_i - ln_theta
-  jnll <- jnll - sum(dnbinom_robust(c_i, ln_pred_i,
-    log_var_minus_mu = ln_var_minus_mu_c,
-    TRUE
-  ))
-  range <- sqrt(8) / exp(ln_kappa)
-  # compute avg overdispersion across observations:
-  # Overdispersion = 1 + mu / theta, where mu = exp(ln_pred_i)
-  od <- mean(1 + exp(ln_pred_i - ln_theta))
-  # Predicted mean and variance for each observation
   mu_i <- exp(ln_pred_i)
   theta <- exp(ln_theta)
-  var_i <- mu_i + mu_i^2 / theta
+  prob_i <- theta / (theta + mu_i)
+  jnll <- jnll - sum(dnbinom(c_i, size = theta, prob = prob_i, log = TRUE))
   
-  # Compute Pearson residuals
+  # compute avg overdispersion across observations:
+  # overdispersion = 1 + mu / theta, where mu = exp(ln_pred_i)
+  od <- mean(1 + exp(ln_pred_i - ln_theta))
+  var_i <- mu_i + mu_i^2 / theta
+  # compute Pearson residuals
   resid_pearson <- (c_i - mu_i) / sqrt(var_i)
   
-  # Report individual residuals (e.g., for spatial plotting)
+  # calculate range 
+  range <- sqrt(8) / exp(ln_kappa)
+  # report individual residuals (e.g., for spatial plotting)
   REPORT(mu_i)
   REPORT(resid_pearson)
   ADREPORT(od)
@@ -220,3 +217,37 @@ plot(obj$report()$'mu_i', obj$report()$'resid_pearson',
      pch = 20, main = "Pearson residuals vs Fitted", 
      xlab = "Fitted values (mu_i)", ylab = "Pearson residuals")
 abline(h = 0, col = "gray")
+
+# simulation experiment
+set.seed(123)
+nsim <- 1000
+max_count <- max(data$c_i)
+
+# function to extract count histogram per simulation
+simulate_counts <- function() {
+  sim <- obj$simulate()
+  tab <- table(factor(sim$c_i, levels = 0:max_count))
+  as.numeric(tab)
+}
+
+# run all simulations and transpose so rows = simulations
+hist_mat <- t(replicate(nsim, simulate_counts()))
+
+# average simulated histogram
+avg_sim <- colMeans(hist_mat)
+
+# observed histogram
+obs_hist <- table(factor(data$c_i, levels = 0:16))
+
+# plot overlapping barplot
+barplot(height = obs_hist, col = rgb(0.2, 0.4, 1, 0.4), border = NA,
+        space = 0, xlab = "Count", ylab = "Frequency",
+        main = "Observed vs. Simulated Count Distribution", 
+        ylim = c(0, 22000))
+
+barplot(height = avg_sim, col = rgb(1, 0, 0, 0.3), border = NA,
+        space = 0, add = TRUE)
+
+legend("topright", legend = c("Observed", "Simulated (mean)"),
+       fill = c(rgb(0.2, 0.4, 1, 0.4), rgb(1, 0, 0, 0.3)), border = NA)
+

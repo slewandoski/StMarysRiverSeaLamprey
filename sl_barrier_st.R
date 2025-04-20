@@ -194,12 +194,14 @@ i <- which(names(sdr$value) == "N")
 N <- sdr$value[i]
 SE <- sdr$sd[i]
 
+par(mfrow=c(2,1))
 # Plot points
 plot(N ~ year_set,
   type = "b", pch = 16, cex = 0.5,
   ylim = range(N - 1.96 * SE, N + 1.96 * SE),
   col = "darkorchid4", xlab = "Year",
-  ylab = "Larval abundance"
+  ylab = "Larval abundance", 
+  main = "Poisson"
 )
 
 # CI lines aligned with year_set
@@ -285,7 +287,8 @@ plot(N ~ year_set,
   type = "b", pch = 16, cex = 0.5,
   ylim = range(N - 1.96 * SE, N + 1.96 * SE),
   col = "darkorchid4", xlab = "Year",
-  ylab = "Larval abundance"
+  ylab = "Larval abundance", 
+  main = "Negative binomial"
 )
 
 # CI lines aligned with year_set

@@ -90,6 +90,15 @@ coords_pred <- st_coordinates(centroids)
 A_pred <- fm_evaluator(mesh, loc = coords_pred)$proj$A
 areas <- as.numeric(st_area(tiles))
 
+# plot the water background
+plot(st_geometry(water), col = "blue", border = NA, main = "Prediction Grid Locations")
+
+# overlay prediction points (centroids)
+plot(st_geometry(centroids), add = TRUE, pch = 16, col = "darkorchid2", cex = 0.6)
+
+# plot mesh points as reference
+points(mesh$loc[,1], mesh$loc[,2], pch = ".", col = "gray")
+
 #-------------------------------------------------------------------------------
 # visualize mesh with land barrier
 #-------------------------------------------------------------------------------

@@ -62,17 +62,20 @@ for (i in seq_along(nearest)) A_is[i, nearest[i]] <- 1
 stopifnot(ncol(A_is) == nrow(Q))
 stopifnot(nrow(A_is) == nrow(data))
 
+tapply(data$n, data$year, sum, na.rm = TRUE)
+
 #-------------------------------------------------------------------------------
 # 5. prepare RTMB inputs
 #-------------------------------------------------------------------------------
 year_set <- min(data$year):max(data$year)
-data_list <- list(
+data <- list(
   "c_i" = data$n,
   "n_t" = length(year_set),
   "n_i" = nrow(data),
   "t_i" = data$year - min(data$year) + 1,
   "A_is" = A_is,
-  "Q" = Q
+  "Q" = Q, 
+  "area_s" = as.numeric(st_area(grid_clipped)) / 1e6  # in km²
 )
 
 par <- list(
@@ -93,7 +96,7 @@ to_cor <- function(x) {
 # 6. objective function
 #-------------------------------------------------------------------------------
 f <- function(par) {
-  getAll(data_list, par, warn = FALSE)
+  getAll(data, par, warn = FALSE)
   c_i <- OBS(c_i)
   rho <- to_cor(trans_rho)
   Q_spde <- exp(4 * ln_kappa) * Diagonal(ncol(A_is)) + Q
@@ -118,6 +121,14 @@ f <- function(par) {
   }
   jnll <- jnll - sum(dpois(c_i, exp(ln_pred_i), TRUE))
   range <- sqrt(8) / exp(ln_kappa)
+  # compute total expected abundance per year
+  N_t <- numeric(n_t)
+  for (t in 1:n_t) {
+    log_lambda_s <- beta0 + omega_s + epsilon_st[, t]
+    lambda_s <- exp(log_lambda_s)
+    N_t[t] <- sum(lambda_s * area_s)
+  }
+  ADREPORT(N_t)
   ADREPORT(range)
   jnll
 }
@@ -131,3 +142,59 @@ obj$gr()
 opt <- nlminb(obj$par, obj$fn, obj$gr)
 sdr <- sdreport(obj, bias.correct = TRUE)
 sdr
+sdr$value
+
+#-------------------------------------------------------------------------------
+# 6. objective function neg binom
+#-------------------------------------------------------------------------------
+par$ln_theta <- 0 # add additional parameter 
+
+f <- function(par) {
+  getAll(data, par, warn = FALSE)
+  c_i <- OBS(c_i)
+  rho <- to_cor(trans_rho)
+  Q_spde <- exp(4 * ln_kappa) * Diagonal(ncol(A_is)) + Q
+  jnll <- 0
+  jnll <- jnll - dgmrf(omega_s, 0.0, Q_spde, TRUE, scale = 1 / exp(ln_tauO))
+  jnll <- jnll - dgmrf(epsilon_st[, 1],
+                       mu = 0, Q = Q_spde,
+                       log = TRUE,
+                       scale = 1 / exp(ln_tauE) / sqrt(1 - rho^2)
+  )
+  for (t in 2:n_t) {
+    jnll <- jnll - dgmrf(epsilon_st[, t],
+                         mu = rho * epsilon_st[, t - 1],
+                         Q = Q_spde, log = TRUE, scale = 1 / exp(ln_tauE)
+    )
+  }
+  omega_i <- A_is %*% omega_s
+  epsilon_it <- A_is %*% epsilon_st
+  ln_pred_i <- numeric(length(c_i))
+  for (i in 1:length(c_i)) {
+    ln_pred_i[i] <- beta0 + omega_i[i] + epsilon_it[i, t_i[i]]
+  }
+  mu_i <- exp(ln_pred_i)
+  theta <- exp(ln_theta)
+  prob_i <- theta / (theta + mu_i)
+  jnll <- jnll - sum(dnbinom(c_i, size = theta, prob = prob_i, log = TRUE))
+  
+  range <- sqrt(8) / exp(ln_kappa)
+  # compute total expected abundance per year
+  N_t <- numeric(n_t)
+  for (t in 1:n_t) {
+    log_lambda_s <- beta0 + omega_s + epsilon_st[, t]
+    lambda_s <- exp(log_lambda_s)
+    N_t[t] <- sum(lambda_s * area_s)
+  }
+  ADREPORT(N_t)
+  ADREPORT(range)
+  jnll
+}
+
+obj <- MakeADFun(f, par, random = c("omega_s", "epsilon_st"))
+obj$fn()
+obj$gr()
+opt <- nlminb(obj$par, obj$fn, obj$gr)
+sdr <- sdreport(obj, bias.correct = TRUE)
+sdr
+sdr$value

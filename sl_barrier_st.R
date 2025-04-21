@@ -1,6 +1,9 @@
 #-------------------------------------------------------------------------------
 # st. mary's larval lamprey in space-time
 # cahill + lewandoski
+# Things to discuss 
+# which spatio-temporal interaction term?
+# iid spatial eps_st, AR1, RW, etc.
 #-------------------------------------------------------------------------------
 
 library(sf)
@@ -37,6 +40,7 @@ bbox_sf_clipped <- st_difference(bbox_sf, st_union(shoreline_f))
 
 # limit domain to detection buffer
 obs_buffer <- st_buffer(st_union(data), dist = 50)
+# obs_buffer <- st_buffer(st_union(data), dist = 5000) # larger buffer
 obs_buffer <- st_transform(obs_buffer, st_crs(bbox_sf_clipped))
 water_clip <- st_intersection(bbox_sf_clipped, obs_buffer)
 land_clip <- st_intersection(shoreline_f, obs_buffer)

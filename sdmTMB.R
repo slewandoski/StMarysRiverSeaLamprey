@@ -5,8 +5,6 @@
 # note, this takes about 66 minutes to run on my desktop
 #
 # todo:
-# - remove type three habitat
-# - model type 1 and 2 habitat as an additional factor
 # - compare abundance predictions among models
 
 library(sdmTMB)

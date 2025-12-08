@@ -206,7 +206,7 @@ print(AIC(m1, m2, m3, m4, m5, m6, m7, m8))
 # a portion of the prediction grid
 
 target_crs <- 26916 # utm zone 16n, nad83
-grid_spacing <- 100 # meters between grid points
+grid_spacing <- 250 # meters between grid points
 bbox_buffer <- 100 # how far beyond survey extent to keep grid (m)
 crop_pad <- 100 # extra padding around grid+points in plots (m)
 
@@ -295,7 +295,7 @@ p1 <- ggplot() +
   geom_point(
     data  = pred_grid,
     aes(x = x, y = y),
-    size  = 0.5,
+    size  = 0.1,
     alpha = 0.5
   ) +
   coord_sf(
@@ -316,7 +316,7 @@ p2 <- ggplot() +
   geom_point(
     data = dat_df,
     aes(x = X, y = Y),
-    size = 1
+    size = 0.1
   ) +
   coord_sf(
     xlim = c(x_min, x_max),
@@ -324,8 +324,6 @@ p2 <- ggplot() +
     expand = FALSE
   ) +
   labs(title = "survey locations")
-
-# you can run: p1 + p2  # to see the originals
 
 # ---------------------------------------------------------------------
 # hacky way to remove that unsampled lake with poly_click
@@ -385,7 +383,7 @@ p3 <- ggplot() +
   geom_point(
     data  = pred_grid_fix,
     aes(x = x, y = y),
-    size  = 0.5,
+    size  = 0.1,
     alpha = 0.5
   ) +
   coord_sf(

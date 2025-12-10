@@ -6,7 +6,8 @@
 #
 # todo:
 # - compare abundance predictions among models
-
+# - deal with the year factor and year trickery in the abundance preds
+# - do some formal model diagnostics using dharma or mcmc
 library(sdmTMB)
 library(sf)
 library(ggplot2)
@@ -34,23 +35,23 @@ data$hab_type <- data$hab.type
 
 # plot non-zero counts in color, zero in grey
 ggplot() +
-  # zeros first, as faint background
-  geom_point(
-    data = subset(data, c == 0),
-    aes(X, Y),
-    colour = "grey90",
-    alpha = 0.95,
-    size = 0.6
-  ) +
-  # non-zeros on top, with colour scale
-  geom_point(
-    data = subset(data, c > 0),
-    aes(X, Y, colour = c),
-    size = 1
-  ) +
-  coord_fixed() +
-  scale_colour_viridis_c(trans = "asinh") +
-  labs(colour = "count", title = "Surveys with counts > 0")
+    # zeros first, as faint background
+    geom_point(
+               data = subset(data, c == 0),
+               aes(X, Y),
+               colour = "grey90",
+               alpha = 0.95,
+               size = 0.6
+               ) +
+    # non-zeros on top, with colour scale
+    geom_point(
+               data = subset(data, c > 0),
+               aes(X, Y, colour = c),
+               size = 1
+               ) +
+    coord_fixed() +
+    scale_colour_viridis_c(trans = "asinh") +
+    labs(colour = "count", title = "Surveys with counts > 0")
 
 mesh <- make_mesh(data, xy_cols = c("X", "Y"), cutoff = 0.25)
 # mesh$mesh$n
@@ -58,12 +59,12 @@ plot(mesh)
 
 # no space or year effect
 m1 <- sdmTMB(
-  c ~ as.factor(hab_type) + s(depth, k = 5), # smoother on depth
-  data = data,
-  mesh = mesh,
-  family = nbinom2(link = "log"),
-  spatial = "off",
-  silent = FALSE
+             c ~ as.factor(hab_type) + s(depth, k = 5), # smoother on depth
+             data = data,
+             mesh = mesh,
+             family = nbinom2(link = "log"),
+             spatial = "off",
+             silent = FALSE
 )
 
 data$resids <- residuals(m1, type = "mle-mvn") # randomized quantile residuals
@@ -72,12 +73,12 @@ abline(0, 1)
 
 # space effect shared among years
 m2 <- sdmTMB(
-  c ~ 1 + as.factor(hab_type) + s(depth, k = 5),
-  data = data,
-  mesh = mesh,
-  family = nbinom2(link = "log"),
-  spatial = "on",
-  silent = FALSE
+             c ~ 1 + as.factor(hab_type) + s(depth, k = 5),
+             data = data,
+             mesh = mesh,
+             family = nbinom2(link = "log"),
+             spatial = "on",
+             silent = FALSE
 )
 
 data$resids <- residuals(m2, type = "mle-mvn") # randomized quantile residuals
@@ -86,75 +87,75 @@ abline(0, 1)
 
 # intercept factor by year, no space or time effects
 m3 <- sdmTMB(
-  c ~ 0 + as.factor(year) + as.factor(hab_type) + s(depth, k = 5),
-  data = data,
-  mesh = mesh,
-  family = nbinom2(link = "log"),
-  spatial = "off",
-  silent = FALSE
+             c ~ 0 + as.factor(year) + as.factor(hab_type) + s(depth, k = 5),
+             data = data,
+             mesh = mesh,
+             family = nbinom2(link = "log"),
+             spatial = "off",
+             silent = FALSE
 )
 
 # intercept factor by year, spatial effect but not time
 m4 <- sdmTMB(
-  c ~ 0 + as.factor(year) + as.factor(hab_type) + s(depth, k = 5),
-  time = "year",
-  data = data,
-  mesh = mesh,
-  family = nbinom2(link = "log"),
-  spatial = "on",
-  silent = FALSE
+             c ~ 0 + as.factor(year) + as.factor(hab_type) + s(depth, k = 5),
+             time = "year",
+             data = data,
+             mesh = mesh,
+             family = nbinom2(link = "log"),
+             spatial = "on",
+             silent = FALSE
 )
 
 # one intercept all years, but IID spatial-temporal fields
 m5 <- sdmTMB(
-  c ~ 1 + as.factor(hab_type) + s(depth, k = 5),
-  time = "year",
-  data = data,
-  mesh = mesh,
-  family = nbinom2(link = "log"),
-  spatial = "on",
-  spatiotemporal = "iid",
-  silent = FALSE
+             c ~ 1 + as.factor(hab_type) + s(depth, k = 5),
+             time = "year",
+             data = data,
+             mesh = mesh,
+             family = nbinom2(link = "log"),
+             spatial = "on",
+             spatiotemporal = "iid",
+             silent = FALSE
 )
 
 # one intercept all years, but spatiotemporal random walk among years
 m6 <- sdmTMB(
-  c ~ 1 + as.factor(hab_type) + s(depth, k = 5),
-  time = "year",
-  data = data,
-  mesh = mesh,
-  family = nbinom2(link = "log"),
-  spatial = "on",
-  spatiotemporal = "rw",
-  extra_time = c(1997, 1998, 2020), # ensure regular spacing
-  silent = FALSE
+             c ~ 1 + as.factor(hab_type) + s(depth, k = 5),
+             time = "year",
+             data = data,
+             mesh = mesh,
+             family = nbinom2(link = "log"),
+             spatial = "on",
+             spatiotemporal = "rw",
+             extra_time = c(1997, 1998, 2020), # ensure regular spacing
+             silent = FALSE
 )
 
 # on intercept all years, spatiotemporal AR1 among years
 m7 <- sdmTMB(
-  c ~ 1 + as.factor(hab_type) + s(depth, k = 5),
-  time = "year",
-  data = data,
-  mesh = mesh,
-  family = nbinom2(link = "log"),
-  spatial = "on",
-  spatiotemporal = "ar1",
-  extra_time = c(1997, 1998, 2020), # ensure regular spacing
-  silent = FALSE
+             c ~ 1 + as.factor(hab_type) + s(depth, k = 5),
+             time = "year",
+             data = data,
+             mesh = mesh,
+             family = nbinom2(link = "log"),
+             spatial = "on",
+             spatiotemporal = "ar1",
+             extra_time = c(1997, 1998, 2020), # ensure regular spacing
+             silent = FALSE
 )
 
 # intercept factor by year, spatio-temporal AR1 among years
 data$year_fac <- as.factor(data$year)
 m8 <- sdmTMB(
-  c ~ 0 + year_fac + as.factor(hab_type) + s(depth, k = 5),
-  time = "year",
-  data = data,
-  mesh = mesh,
-  family = nbinom2(link = "log"),
-  spatial = "on",
-  spatiotemporal = "ar1",
-  extra_time = c(1997, 1998, 2020), # ensure regular spacing
-  silent = FALSE
+             c ~ 0 + year_fac + as.factor(hab_type) + s(depth, k = 5),
+             time = "year",
+             data = data,
+             mesh = mesh,
+             family = nbinom2(link = "log"),
+             spatial = "on",
+             spatiotemporal = "ar1",
+             extra_time = c(1997, 1998, 2020), # ensure regular spacing
+             silent = FALSE
 )
 
 print(AIC(m1, m2, m3, m4, m5, m6, m7, m8))
@@ -187,10 +188,10 @@ dharma_residuals(s, m8)
 abline(0,1)
 
 ggplot(data, aes(X, Y, col = resids)) +
-  scale_colour_gradient2() +
-  geom_point() +
-  facet_wrap(~year, nrow = 4) +
-  coord_fixed()
+    scale_colour_gradient2() +
+    geom_point() +
+    facet_wrap(~year, nrow = 4) +
+    coord_fixed()
 
 #----------------------------------------------------------------------
 # predictions 
@@ -215,40 +216,50 @@ predictions <- predict(m8, newdata = grid_yrs, return_tmb_object = TRUE)
 
 # function to make maps
 plot_map <- function(dat, column) {
-  ggplot(dat, aes(X, Y, fill = {{ column }})) +
-    geom_raster() +
-    facet_wrap(~year, nrow = 3) +
-    coord_fixed()
+    ggplot(dat, aes(X, Y, fill = {{ column }})) +
+        geom_raster() +
+        facet_wrap(~year, nrow = 3) +
+        coord_fixed()
 }
 
 p1 <- plot_map(predictions$data, exp(est)) +
-  scale_fill_viridis_c(trans = "sqrt") +
-  ggtitle("Prediction (fixed effects + all random effects)")
+    scale_fill_viridis_c(trans = "sqrt") +
+    ggtitle("Prediction (fixed effects + all random effects)")
 
 p2 <- plot_map(predictions$data, exp(est_non_rf)) +
-  ggtitle("Prediction (fixed effects only)") +
-  scale_fill_viridis_c(trans = "sqrt")
+    ggtitle("Prediction (fixed effects only)") +
+    scale_fill_viridis_c(trans = "sqrt")
 
 p3 <- plot_map(predictions$data, omega_s) +
-  ggtitle("Spatial random effects only") +
-  scale_fill_gradient2()
+    ggtitle("Spatial random effects only") +
+    scale_fill_gradient2()
 
 p4 <- plot_map(predictions$data, epsilon_st) +
-  ggtitle("Spatiotemporal random effects only") +
-  scale_fill_gradient2()
+    ggtitle("Spatiotemporal random effects only") +
+    scale_fill_gradient2()
 
 # area of each grid is 100 m by 100 m, and quadrat is 2.44m^2
 area <- (100 * 100) / 2.44
 index <- get_index(predictions, area = area, bias_correct = TRUE)
 p5 <- ggplot(index, aes(year, est)) + geom_line() +
-  geom_ribbon(aes(ymin = lwr, ymax = upr), alpha = 0.4) +
-  xlab('Year') + ylab('Number of juvenile lamprey')
+    geom_ribbon(aes(ymin = lwr, ymax = upr), alpha = 0.4) +
+    xlab('Year') + ylab('Number of juvenile lamprey')
 
 # multi-page pdf"
-pdf("ar1st_idx_std.pdf", width = 15, height = 10)
+pdf("ar1st_idx_std.pdf", width = 15, height = 11)
 print(p1)
 print(p2)
 print(p3)
 print(p4)
 print(p5)
 dev.off()
+
+# play
+# center of gravity:
+#cog <- get_cog(predictions, format = "wide")
+#cog
+#ggplot(cog, aes(est_x, est_y, colour = year)) +
+#  geom_point() +
+#  geom_linerange(aes(xmin = lwr_x, xmax = upr_x)) +
+#  geom_linerange(aes(ymin = lwr_y, ymax = upr_y)) +
+#  scale_colour_viridis_c()

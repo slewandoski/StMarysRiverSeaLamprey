@@ -1,5 +1,5 @@
 # fit some index standardization models using sdmTMB
-#
+# each sampled unit is 2.44 m^2
 # see https://sdmtmb.github.io/sdmTMB/
 #
 # note, this takes about 66 minutes to run on my desktop
@@ -10,6 +10,7 @@
 library(sdmTMB)
 library(sf)
 library(ggplot2)
+library(dplyr)
 library(raster)
 library(patchwork)
 
@@ -53,7 +54,7 @@ ggplot() +
 
 mesh <- make_mesh(data, xy_cols = c("X", "Y"), cutoff = 0.25)
 # mesh$mesh$n
-# plot(mesh)
+plot(mesh)
 
 # no space or year effect
 m1 <- sdmTMB(
@@ -168,26 +169,84 @@ print(AIC(m1, m2, m3, m4, m5, m6, m7, m8))
 # m6  8 26399.01
 # m7  9 26279.90
 # m8 37 26229.16
+# note these will change if changing mesh...
 
 # general plots and diagnostics, can (should) be run for each model
-# m4
-# tidy(m4, conf.int = TRUE)
-# tidy(m4, effects = "ran_pars", conf.int = TRUE)
-# sanity(m4)
-#  plot depth effect
-# ggeffects::ggpredict(m4, terms="depth[0:40, by = 2]") |> plot()
-# data$resids <- residuals(m4) # randomized quantile residuals
-# hist(data$resids)
-# ggplot(data, aes(X, Y, col = resids)) + scale_colour_gradient2() +
-#     geom_point() + facet_wrap(~year, nrow = 3) + coord_fixed()
-# set.seed(19283)
-# s <- simulate(m4, nsim = 1000, type = "mle-mvn")
-# dharma_residuals(s, m4)
-# abline(0,1)
-#
-# ggplot(data, aes(X, Y, col = resids)) +
-#   scale_colour_gradient2() +
-#   geom_point() +
-#   facet_wrap(~year, nrow = 4) +
-#   coord_fixed()
+sanity(m8)
+tidy(m8, conf.int = TRUE)
+tidy(m8, effects = "ran_pars", conf.int = TRUE)
+# plot depth effect
+ggeffects::ggpredict(m8, terms="depth[0:40, by = 2]") |> plot()
+data$resids <- residuals(m8) # randomized quantile residuals
+hist(data$resids)
+ggplot(data, aes(X, Y, col = resids)) + scale_colour_gradient2() +
+    geom_point() + facet_wrap(~year, nrow = 3) + coord_fixed()
+set.seed(19283)
+s <- simulate(m8, nsim = 1000, type = "mle-mvn")
+dharma_residuals(s, m8)
+abline(0,1)
 
+ggplot(data, aes(X, Y, col = resids)) +
+  scale_colour_gradient2() +
+  geom_point() +
+  facet_wrap(~year, nrow = 4) +
+  coord_fixed()
+
+#----------------------------------------------------------------------
+# predictions 
+#----------------------------------------------------------------------
+
+data$year_fac <- as.factor(data$year)
+pred_grid <- st_read("pred_grid.gpkg")
+# extract coordinates
+xy <- st_coordinates(pred_grid)
+
+# add X and Y columns
+pred_grid$X <- xy[, 1]/1000
+pred_grid$Y <- xy[, 2]/1000
+
+pred_grid <- as.data.frame(pred_grid)
+pred_grid$geom <- NULL
+pred_grid <- pred_grid[,c("X", "Y", "depth", "hab_type")]
+grid_yrs <- replicate_df(pred_grid, "year", unique(data$year))
+grid_yrs$year_fac <- as.factor(grid_yrs$year)
+predictions <- predict(m8, newdata = grid_yrs, return_tmb_object = TRUE)
+
+# function to make maps
+plot_map <- function(dat, column) {
+  ggplot(dat, aes(X, Y, fill = {{ column }})) +
+    geom_raster() +
+    facet_wrap(~year, nrow = 3) +
+    coord_fixed()
+}
+
+p1 <- plot_map(predictions$data, exp(est)) +
+  scale_fill_viridis_c(trans = "sqrt") +
+  ggtitle("Prediction (fixed effects + all random effects)")
+
+p2 <- plot_map(predictions$data, exp(est_non_rf)) +
+  ggtitle("Prediction (fixed effects only)") +
+  scale_fill_viridis_c(trans = "sqrt")
+
+p3 <- plot_map(predictions$data, omega_s) +
+  ggtitle("Spatial random effects only") +
+  scale_fill_gradient2()
+
+p4 <- plot_map(predictions$data, epsilon_st) +
+  ggtitle("Spatiotemporal random effects only") +
+  scale_fill_gradient2()
+
+# area of each grid is 100 m by 100 m = 0.01 km^2
+index <- get_index(predictions, area = 0.01, bias_correct = TRUE)
+p5 <- ggplot(index, aes(year, est)) + geom_line() +
+  geom_ribbon(aes(ymin = lwr, ymax = upr), alpha = 0.4) +
+  xlab('Year') + ylab('Number of Larvae')
+
+# multi-page pdf"
+pdf("ar1st_idx_std.pdf", width = 15, height = 10)
+print(p1)
+print(p2)
+print(p3)
+print(p4)
+print(p5)
+dev.off()

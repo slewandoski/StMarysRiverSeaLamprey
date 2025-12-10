@@ -205,6 +205,7 @@ xy <- st_coordinates(pred_grid)
 pred_grid$X <- xy[, 1]/1000
 pred_grid$Y <- xy[, 2]/1000
 
+# need to double check year_fac + year stuff here
 pred_grid <- as.data.frame(pred_grid)
 pred_grid$geom <- NULL
 pred_grid <- pred_grid[,c("X", "Y", "depth", "hab_type")]
@@ -236,11 +237,12 @@ p4 <- plot_map(predictions$data, epsilon_st) +
   ggtitle("Spatiotemporal random effects only") +
   scale_fill_gradient2()
 
-# area of each grid is 100 m by 100 m = 0.01 km^2
-index <- get_index(predictions, area = 0.01, bias_correct = TRUE)
+# area of each grid is 100 m by 100 m, and quadrat is 2.44m^2
+area <- (100 * 100) / 2.44
+index <- get_index(predictions, area = area, bias_correct = TRUE)
 p5 <- ggplot(index, aes(year, est)) + geom_line() +
   geom_ribbon(aes(ymin = lwr, ymax = upr), alpha = 0.4) +
-  xlab('Year') + ylab('Number of Larvae')
+  xlab('Year') + ylab('Number of juvenile lamprey')
 
 # multi-page pdf"
 pdf("ar1st_idx_std.pdf", width = 15, height = 10)

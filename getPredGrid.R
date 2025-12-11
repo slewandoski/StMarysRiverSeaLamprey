@@ -167,10 +167,4 @@ grid_sf_out$geom <- NULL
 grid_sf_out <- grid_sf_out[,c("X", "Y", "depth", "hab_type", "area")]
 
 # save the final grid
-st_write(
- grid_sf_out,
- "pred_grid.gpkg",
- layer = "pred_grid",
- delete_layer = TRUE
-)
-
+save(grid_sf_out, file = "pred_grid.RData")

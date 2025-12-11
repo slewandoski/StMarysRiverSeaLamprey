@@ -143,7 +143,7 @@ sanity(m6)
 
 print(AIC(m1, m2, m3, m4, m5, m6))
 
-dir.create("output", showWarnings = FALSE)
+# dir.create("output", showWarnings = FALSE)
 
 save(
   m1, m2, m3, m4, m5, m6,

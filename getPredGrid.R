@@ -165,6 +165,6 @@ grid_sf_out$Y <- xy[, 2]/1000
 grid_sf_out <- as.data.frame(grid_sf_out)
 grid_sf_out$geom <- NULL
 grid_sf_out <- grid_sf_out[,c("X", "Y", "depth", "hab_type", "area")]
-
+pred_grid <- grid_sf_out
 # save the final grid
-save(grid_sf_out, file = "pred_grid.RData")
+save(pred_grid, file = "pred_grid.RData")

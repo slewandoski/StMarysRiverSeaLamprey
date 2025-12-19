@@ -17,7 +17,10 @@ data$period[data$year==1998]<-1
 #change all 2001 sampling from pre to post, except for samples in region 5
 data$period[data$year==2001 & data$period==-1 & data$region!=5]<-1
 
-##remove remaining samples coded as pre
+# remove data before 1999
+data <- data[which(data$year < 1999),]
+
+#remove remaining samples coded as pre
 data<-data[data$period != -1,]
 data <- data[which(data$hab.type != 3), ]
 data <- st_as_sf(data, coords = c("longitude", "latitude"), crs = 4326) # WGS84

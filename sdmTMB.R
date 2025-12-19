@@ -120,7 +120,7 @@ m4 <- sdmTMB(
   time = "year",
   data = data,
   mesh = mesh,
-  family = negbin2(link = "log"),
+  family = nbinom2(link = "log"),
   spatial = "on",
   spatiotemporal = "off",
   extra_time = c(1997, 1998, 2020), # ensure regular spacing
@@ -133,7 +133,7 @@ m5 <- sdmTMB(
   time = "year",
   data = data,
   mesh = mesh,
-  family = negbin2(link = "log"),
+  family = nbinom2(link = "log"),
   spatial = "on",
   spatiotemporal = "iid",
   extra_time = c(1997, 1998, 2020), # ensure regular spacing
@@ -146,7 +146,7 @@ m6 <- sdmTMB(
   time = "year",
   data = data,
   mesh = mesh,
-  family = negbin2(link = "log"),
+  family = nbinom2(link = "log"),
   spatial = "on",
   spatiotemporal = "iid",
   extra_time = c(1997, 1998, 2020), # ensure regular spacing
